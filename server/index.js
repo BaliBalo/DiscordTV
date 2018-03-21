@@ -76,7 +76,7 @@ module.exports = function(io) {
 	}
 
 	function handleUser(socket) {
-		let ip = socket.handshake.address;
+		let ip = socket.request.connection.remoteAddress;
 		// console.log('User ' + ip + ' connected');
 		let user = {
 			id: socket.id,

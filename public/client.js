@@ -96,8 +96,8 @@ function initiateRequest(e) {
 function parseRequest(val) {
 	if (!val) return;
 	// Just an id
-	if (val.match(/^[a-z_-]{11}$/i)) return sendRequest(val);
-	let match = val.match(/(?:[?&]v=|youtu.be\/)([a-z_-]+)/i);
+	if (val.match(/^[0-9a-z_-]{11}$/i)) return sendRequest(val);
+	let match = val.match(/(?:[?&]v=|youtu.be\/)([0-9a-z_-]+)/i);
 	if (match) {
 		sendRequest(match[1]);
 	}
