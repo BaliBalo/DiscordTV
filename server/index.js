@@ -76,7 +76,9 @@ module.exports = function(io) {
 	}
 
 	function handleUser(socket) {
-		let ip = socket.request.connection.remoteAddress;
+		let req = socket.request;
+		let ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+		
 		// console.log('User ' + ip + ' connected');
 		let user = {
 			id: socket.id,
