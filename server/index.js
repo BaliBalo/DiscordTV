@@ -1,3 +1,4 @@
+const ts = require('../utils/timestamp');
 const { getVideoInfo } = require('./youtube');
 
 let lastUpdate = Date.now();
@@ -5,7 +6,7 @@ let current = undefined;
 // {
 // 	id: undefined,
 // 	startAt: 0,
-// 	startedBy: undefined,
+// 	startedBy: { name: '' },
 // 	paused: true,
 // 	currentTime: 0,
 // 	duration: 0,
@@ -36,8 +37,9 @@ module.exports = function(io) {
 			io.emit('play', undefined);
 			return Promise.resolve(true);
 		}
-		return getVideoInfo(id).catch(e => undefined).then(info => {
+		return getVideoInfo(id).catch(e => console.log('Error getting video info for', id, e)).then(info => {
 			if (!info) return false;
+			console.log(ts(), 'Playing', info.id);
 			current = {
 				id: info.id,
 				startAt: Date.now(),
@@ -74,23 +76,26 @@ module.exports = function(io) {
 	}
 
 	function handleUser(socket) {
-		console.log('User ' + socket.id + ' connected');
+		let ip = socket.handshake.address;
+		// console.log('User ' + ip + ' connected');
 		let user = {
 			id: socket.id,
 			discordId: undefined,
-			name: '???'
+			ip: ip,
+			name: ip
 		};
 		users[socket.id] = user;
 		socket.on('me', data => {
-			user.discordId = data.discordId;
-			user.name = data.name;
+			data = data || {};
+			user.discordId = data.discordId || undefined;
+			user.name = data.name || '';
 		});
 		socket.on('play', id => setCurrent(id, user));
 		socket.on('stop', () => setCurrent(undefined, user));
 		socket.on('pause', pause);
 		socket.on('resume', resume);
 		socket.on('disconnect', () => {
-			console.log('User ' + socket.id + ' disconnected');
+			// console.log('User ' + ip + ' disconnected');
 			delete users[socket.id];
 		});
 		if (current) {
