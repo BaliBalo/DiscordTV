@@ -27,13 +27,17 @@ let position = [100, 30];
 // let anchor = ['start', 'start'];
 let ratio = 16 / 9;
 let size = [360, 360 / ratio];
+let collapsed = true;
+let player;
 
 let grabbedAt = null;
 function grab(e) {
+	e.preventDefault();
 	grabbedAt = [e.clientX - position[0], e.clientY - position[1]];
 }
 function move(e) {
 	if (!grabbedAt) return;
+	e.preventDefault();
 	position[0] = e.clientX - grabbedAt[0];
 	position[1] = e.clientY - grabbedAt[1];
 	updatePosition();
@@ -80,6 +84,16 @@ function initiateRequest(e) {
 	};
 	input.addEventListener('blur', close);
 	input.addEventListener('input', () => {
+		// playVideo(input.value === ' ' ? null : {
+		// 	id: '6Ppk-lfuNB8',
+		// 	startAt: Date.now(),
+		// 	startedBy: { name: 'bb' },
+		// 	paused: false,
+		// 	currentTime: 0,
+		// 	duration: 198,
+		// 	title: 'Killer Piller - Goto80',
+		// 	channel: 'Harry Wootten'
+		// });
 		parseRequest(input.value);
 		close();
 	});
@@ -119,8 +133,10 @@ function createElements() {
 		position: 'absolute',
 		left: '0',
 		top: '0',
-		width: '360px',
-		fontFamily: 'sans-serif'
+		width: '100px',
+		fontFamily: 'sans-serif',
+		transition: 'width .25s',
+		userSelect: 'none'
 	});
 	dom.topBar = create({
 		display: 'flex',
@@ -180,6 +196,22 @@ function createElements() {
 	dom.link.addEventListener('mousedown', e => e.stopPropagation());
 	dom.link.target = '_blank';
 	// dom.link.href = 'https://www.youtube.com/watch?v=6Ppk-lfuNB8';
+	dom.playerWrapper = create({
+		position: 'relative',
+		height: '0',
+		overflow: 'hidden',
+		transition: 'height .25s'
+	});
+	dom.player = create({
+		position: 'absolute',
+		left: '0',
+		bottom: '0',
+		width: size[0] + 'px',
+		height: size[1] + 'px',
+		background: 'black',
+		pointerEvents: 'none'
+	});
+	dom.player.id = 'discordtv-player';
 
 	dom.topBar.appendChild(dom.requestButton);
 	dom.info.appendChild(dom.title);
@@ -187,6 +219,8 @@ function createElements() {
 	dom.topBar.appendChild(dom.info);
 	dom.topBar.appendChild(dom.link);
 	dom.main.appendChild(dom.topBar);
+	dom.playerWrapper.appendChild(dom.player);
+	dom.main.appendChild(dom.playerWrapper);
 	updatePosition();
 	document.body.appendChild(dom.main);
 }
@@ -194,25 +228,55 @@ function createElements() {
 function playVideo(data) {
 	console.log('playing', data);
 	if (!data || !data.id) {
+		collapsed = true;
 		dom.title.textContent = '';
 		dom.user.textContent = '';
-		setStyle(dom.link, { width: '0' });
+		setStyle(dom.link, { width: '0', transitionDelay: '0s' });
+		setStyle(dom.main, { width: '100px', transitionDelay: '.25s' });
+		setStyle(dom.playerWrapper, { height: '0', transitionDelay: '0s' });
+		if (player) {
+			player.destroy();
+			player = null;
+		}
 		return;
 	}
+	collapsed = false;
 	dom.title.textContent = data.title;
 	let user = data.startedBy && data.startedBy.name || '';
 	dom.user.textContent = user;
 	dom.link.href = 'https://www.youtube.com/watch?v=' + data.id;
-	setStyle(dom.link, { width: '30px' });
+	setStyle(dom.link, { width: '30px', transitionDelay: '.25s' });
+	setStyle(dom.main, { width: size[0] + 'px', transitionDelay: '0s' });
+	setStyle(dom.playerWrapper, { height: size[1] + 'px', transitionDelay: '.25s' });
+	if (player) {
+		player.destroy();
+	}
+	player = new YT.Player(dom.player.id, {
+		videoId: data.id,
+		playerVars: {
+			autoplay: 1,
+			controls: 0,
+			disablekb: 1,
+			modestbranding: 1,
+			rel: 0,
+			showinfo: 0,
+		}
+	});
 }
 
 function ready() {
 	if (!socket) return;
 	socket.on('play', playVideo);
-	// socket.emit('me', { name: 'Web user' });
+	sendMe();
+	socket.on('reconnect', sendMe);
 }
 
-let base = 'http://discordtv.balibalo.xyz/';
+function sendMe() {
+	// socket.emit('me', { name: '...' });
+}
+
+let base = '/';
+// let base = 'http://discordtv.balibalo.xyz/';
 
 function onYouTubeIframeAPIReady() {
 	loadScript(base + 'socket.io/socket.io.js', function() {
