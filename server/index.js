@@ -76,10 +76,9 @@ module.exports = function(io) {
 	}
 
 	function handleUser(socket) {
-		let req = socket.request;
-		let ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-		
-		// console.log('User ' + ip + ' connected');
+		let ip = socket.handshake.headers['x-forwarded-for'] || socket.request.connection.remoteAddress;
+
+		console.log(ts(), 'User ' + ip + ' connected');
 		let user = {
 			id: socket.id,
 			discordId: undefined,
@@ -97,7 +96,7 @@ module.exports = function(io) {
 		socket.on('pause', pause);
 		socket.on('resume', resume);
 		socket.on('disconnect', () => {
-			// console.log('User ' + ip + ' disconnected');
+			console.log(ts(), 'User ' + ip + ' disconnected');
 			delete users[socket.id];
 		});
 		if (current) {
