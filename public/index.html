@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<title>Synced youtube</title>
+	<style>
+		html, body { height: 100%; margin: 0; }
+		body {
+			font-family: sans-serif;
+			background: #36393e;
+			overflow: hidden;
+		}
+		@keyframes animateIn {
+			from { opacity: 0; transform: translateY(20px); }
+			to { opacity: 1; transform: translateY(0); }
+		}
+		#login, #ok { display: none; animation: animateIn 1s; }
+		.login #login {
+			position: fixed;
+			top: 0; left: 0;
+			width: 100%; height: 100%;
+			display: flex;
+			flex-flow: column nowrap;
+			align-items: center;
+			justify-content: center;
+		}
+		#login a {
+			text-decoration: none;
+			display: inline-block;
+			background: #7289da;
+			color: #fff;
+			border-radius: 3px;
+			cursor: pointer;
+			padding: 10px 20px;
+			font-size: .8rem;
+			transition: background .2s;
+		}
+		#login a:hover, #login a:focus {
+			background: #6c82cf;
+		}
+		.ok #ok { display: block; }
+		.backgroundSwitcher {
+			position: absolute;
+			right: 7px;
+			top: 10px;
+			display: flex;
+			flex-flow: row nowrap;
+		}
+		.backgroundSwitcher .choice {
+			width: 1rem;
+			height: 1rem;
+			border: 2px solid #aaa;
+			margin: 0 3px;
+			border-radius: 50%;
+		}
+		.backgroundSwitcher .light { background: #fff; }
+		.backgroundSwitcher .dark { background: #36393e; }
+		.backgroundSwitcher .checker {
+			background: #444 .5rem center / 3rem 3rem repeat;
+			background-image:
+				linear-gradient(to bottom right, #333 25%, transparent 25%),
+				linear-gradient(to bottom left, #333 25%, transparent 25%),
+				linear-gradient(to top right, #333 25%, transparent 25%),
+				linear-gradient(to top left, #333 25%, transparent 25%);
+		}
+		@keyframes gradient {
+			from { background-position: center, 0% 50%; }
+			to { background-position: center, 100% 50%; }
+		}
+		.backgroundSwitcher .gradient {
+			background-image: url(https://i.imgur.com/USX6LGw.png), linear-gradient(to right, #500, #008, #040, #500, #008);
+			background-size: auto auto, 400% 1px;
+			animation: gradient 150s linear infinite;
+			animation-play-state: paused;
+		}
+	</style>
+</head>
+<body>
+	<div id="login">
+		<a href="https://discordapp.com/api/oauth2/authorize?client_id=402225153758593036&redirect_uri=http%3A%2F%2Fdiscordtv.balibalo.xyz%2F&response_type=code&scope=identify">
+			CONNEXION
+		</a>
+	</div>
+	<div id="ok">
+		<div class="backgroundSwitcher">
+			<div class="choice light"></div>
+			<div class="choice dark"></div>
+			<div class="choice checker"></div>
+			<div class="choice gradient"></div>
+		</div>
+	</div>
+	<script>
+		let QScode = location.search.match(/[?&]code=([^&#]+)/i);
+		let code;
+		if (QScode) {
+			code = decodeURIComponent(QScode[1]);
+		} else {
+			code = localStorage.getItem('code');
+		}
+		let getUser = Promise.resolve(null);
+		if (code) {
+			getUser = fetch('/user-info?code=' + encodeURIComponent(code)).then(res => res.json()).catch(e => null);
+		}
+		getUser.then(user => {
+			if (!user || !user.id) {
+				localStorage.removeItem('code');
+				document.body.classList.add('login');
+				return;
+			}
+			localStorage.setItem('code', code);
+			document.body.classList.add('ok');
+			let script = document.createElement('script');
+			script.src = 'client.js';
+			document.body.appendChild(script);
+		});
+
+		document.querySelector('.backgroundSwitcher').addEventListener('click', e => {
+			let target = e.target;
+			if (!target.classList.contains('choice')) return;
+			let style = getComputedStyle(target);
+			[
+				'backgroundColor',
+				'backgroundImage',
+				'backgroundSize',
+				'backgroundRepeat',
+				'backgroundPosition',
+				'animationName',
+				'animationDuration',
+				'animationIterationCount',
+				'animationTimingFunction'
+			].forEach(prop => document.body.style[prop] = style[prop])
+		}, true);
+	</script>
+</body>
+</html>

@@ -1,3 +1,6 @@
+let base = '/';
+// let base = 'http://discordtv.balibalo.xyz/';
+
 function loadScript(url, onload) {
 	let script = document.createElement('script');
 	script.onload = onload;
@@ -142,7 +145,7 @@ function createElements() {
 		display: 'flex',
 		flexFlow: 'row nowrap',
 		height: '30px',
-		background: '#333',
+		background: '#111',
 		color: '#fff',
 		cursor: 'move',
 		'borderRadius': '6px 5px 0 0',
@@ -155,7 +158,7 @@ function createElements() {
 		flex: '0 0 auto',
 		width: '30px',
 		height: '30px',
-		background: '#c62326 url(http://discordtv.balibalo.xyz/youtube.png) center / contain no-repeat',
+		background: '#c62326 url(' + base + 'youtube.png) center / contain no-repeat',
 		border: 'none',
 		borderRadius: '5px 0 0 0',
 		cursor: 'pointer',
@@ -190,7 +193,7 @@ function createElements() {
 		flex: '0 0 auto',
 		width: '0',
 		height: '30px',
-		background: 'url(http://discordtv.balibalo.xyz/link.png) center / auto 75% no-repeat',
+		background: 'url(' + base + 'link.png) center / auto 75% no-repeat',
 		transition: 'width .25s'
 	});
 	dom.link.addEventListener('mousedown', e => e.stopPropagation());
@@ -274,9 +277,6 @@ function ready() {
 function sendMe() {
 	// socket.emit('me', { name: '...' });
 }
-
-let base = '/';
-// let base = 'http://discordtv.balibalo.xyz/';
 
 function onYouTubeIframeAPIReady() {
 	loadScript(base + 'socket.io/socket.io.js', function() {

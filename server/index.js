@@ -37,7 +37,7 @@ module.exports = function(io) {
 			io.emit('play', undefined);
 			return Promise.resolve(true);
 		}
-		return getVideoInfo(id).catch(e => console.log('Error getting video info for', id, e)).then(info => {
+		return getVideoInfo(id).catch(e => console.log('Error getting video info for', id, e && e.error && e.error.error && e.error.error.message || e)).then(info => {
 			if (!info) return false;
 			console.log(ts(), 'Playing', info.id);
 			current = {
