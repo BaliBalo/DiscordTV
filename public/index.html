@@ -105,6 +105,7 @@
 		}
 		getUser.then(user => {
 			if (!user || !user.id) {
+				console.log('Login error', user);
 				localStorage.removeItem('code');
 				document.body.classList.add('login');
 				return;

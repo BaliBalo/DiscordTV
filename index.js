@@ -28,17 +28,16 @@ app.get('/user-info', (req, res) => {
 			},
 			json: true
 		}).then(data => {
-			const token = data.access_token;
+			if (!data || !data.access_token) {
+				throw new Error('No access token ' + JSON.stringify(data));
+			}
+			let type = data.token_type || 'Bearer';
+			const auth = type + ' ' + data.access_token;
 			return request({
-				method: 'POST',
-				uri: 'https://discordapp.com/api/oauth2/token',
-				qs: {
-					grant_type: 'authorization_code',
-					code: code,
-					redirect_uri: 'http://discordtv.balibalo.xyz/'
-				},
+				method: 'GET',
+				uri: 'https://discordapp.com/api/users/@me',
 				headers: {
-					Authorization: 'Basic ' + config.discordAuth,
+					Authorization: auth,
 				},
 				json: true
 			});
