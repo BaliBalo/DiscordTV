@@ -679,6 +679,10 @@
 			setStyle(dom.link, { width: '0', transitionDelay: '0s' });
 			setStyle(dom.main, { width: '100px', transitionDelay: '.25s' });
 			setStyle(dom.playerWrapper, { height: '0', transitionDelay: '0s' });
+			setStyle(dom.controlsProgressThumb, { left: '0%' });
+			setStyle(dom.controlsProgressBar, {
+				backgroundSize: '0% 2px, 100% 2px'
+			});
 			if (player) {
 				player.destroy();
 				player = null;
