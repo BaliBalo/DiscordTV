@@ -16,6 +16,8 @@ let current = undefined;
 
 let users = {};
 
+let preferences = {};
+
 module.exports = function(io) {
 	function updateCurrent() {
 		let now = Date.now()
@@ -24,22 +26,26 @@ module.exports = function(io) {
 		if (!current || current.paused) return;
 		current.currentTime += delta;
 		if (current.currentTime >= current.duration + 2) {
+			console.log(ts(), 'Stopping', current.id, 'because it ended');
 			current = undefined;
 			io.emit('play', undefined);
 		}
 	}
-	setInterval(updateCurrent, 1000);
+	setInterval(updateCurrent, 100);
 
 	function setCurrent(id, user) {
 		if (!id) {
-			if (current === undefined) return promise.resolve(false);
+			if (current === undefined) return Promise.resolve(false);
+			console.log(ts(), 'Stopping from', user && user.username);
 			current = undefined;
 			io.emit('play', undefined);
 			return Promise.resolve(true);
 		}
-		return getVideoInfo(id).catch(e => console.log('Error getting video info for', id, e && e.error && e.error.error && e.error.error.message || e)).then(info => {
+		return getVideoInfo(id).catch(e => {
+			console.log('Error getting video info for', id, e && e.error && e.error.error && e.error.error.message || e);
+		}).then(info => {
 			if (!info) return false;
-			console.log(ts(), 'Playing', info.id);
+			console.log(ts(), 'Playing', info.id, 'from', user && user.username);
 			current = {
 				id: info.id,
 				startAt: Date.now(),
@@ -55,22 +61,25 @@ module.exports = function(io) {
 		});
 	}
 
-	function pause() {
+	function pause(user) {
 		updateCurrent();
 		if (!current || current.paused) return;
+		console.log(ts(), 'Pausing from', user && user.username);
 		current.paused = true;
 		io.emit('pause');
 	}
-	function resume() {
+	function resume(user) {
 		updateCurrent();
 		if (!current || !current.paused) return;
+		console.log(ts(), 'Resuming from', user && user.username);
 		current.paused = false;
 		io.emit('resume');
 	}
-	function seek(time) {
+	function seek(time, user) {
 		updateCurrent();
 		if (!current) return;
-		current.paused = false;
+		console.log(ts(), 'Seeking to', time, 'from', user && user.username);
+		// current.paused = false;
 		current.currentTime = time;
 		io.emit('seek', time);
 	}
@@ -81,27 +90,38 @@ module.exports = function(io) {
 		// console.log(ts(), 'User ' + ip + ' connected');
 		let user = {
 			id: socket.id,
-			discordId: undefined,
 			ip: ip,
-			name: ip
+			username: ip
 		};
 		users[socket.id] = user;
 		socket.on('me', data => {
 			data = data || {};
-			user.discordId = data.discordId || undefined;
-			user.name = data.name || '';
+			let username = data.username;
+			if (!username) return;
+			user.username = username;
+			if (!preferences[username]) {
+				preferences[username] = {};
+			}
+			let pref = preferences[username];
+
+			socket.on('play', id => setCurrent(id, user));
+			socket.on('stop', () => setCurrent(undefined, user));
+			socket.on('pause', () => pause(user));
+			socket.on('resume', () => resume(user));
+			socket.on('seek', time => seek(time, user));
+			socket.on('preference', (key, value) => {
+				pref[key] = value;
+			});
+
+			socket.emit('preferences', pref);
+			if (current) {
+				socket.emit('play', current);
+			}
 		});
-		socket.on('play', id => setCurrent(id, user));
-		socket.on('stop', () => setCurrent(undefined, user));
-		socket.on('pause', pause);
-		socket.on('resume', resume);
 		socket.on('disconnect', () => {
 			// console.log(ts(), 'User ' + ip + ' disconnected');
 			delete users[socket.id];
 		});
-		if (current) {
-			socket.emit('play', current);
-		}
 	}
 
 	io.on('connect', handleUser);

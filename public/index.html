@@ -110,6 +110,7 @@
 				document.body.classList.add('login');
 				return;
 			}
+			window.__DISCORD_USER__ = user;
 			localStorage.setItem('code', code);
 			document.body.classList.add('ok');
 			let script = document.createElement('script');
