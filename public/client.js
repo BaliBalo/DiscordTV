@@ -1,7 +1,9 @@
 (function() {
 
-	// let base = '/';
 	let base = 'https://discordtv.balibalo.xyz/';
+	if (location.hostname === 'localhost') {
+		base = '/';
+	}
 	let user = null;
 
 	function loadScript(url, onload) {
@@ -113,9 +115,12 @@
 			top: 'auto',
 			bottom: 'auto',
 		};
-		update[preferences.anchor[0]] = preferences.position[0] + 'px';
-		update[preferences.anchor[1]] = preferences.position[1] + 'px';
-		// transform: 'translate(' + position[0] + 'px, ' + position[1] + 'px)'
+		let availWidth = Math.min(window.outerWidth, window.innerWidth);
+		let availHeight = window.innerHeight;
+		let pX = clamp(preferences.position[0], 0, availWidth - 100);
+		let pY = clamp(preferences.position[1], 0, availHeight - 30);
+		update[preferences.anchor[0]] = pX + 'px';
+		update[preferences.anchor[1]] = pY + 'px';
 		setStyle(dom.main, update);
 	}
 
@@ -287,9 +292,9 @@
 		let time = progress * playing.duration;
 		dom.controlsProgressTextCurrent.textContent = formatTime(time);
 		grabbedTime = time;
-		if (player) {
-			player.seekTo(time, false);
-		}
+		// if (player) {
+		// 	player.seekTo(time, false);
+		// }
 	}
 	function releaseProgress(e) {
 		if (!progressGrabbed) return;
@@ -742,7 +747,7 @@
 		if (!playing || playing.paused) return;
 		playing.paused = true;
 		setStyle(dom.controlsPause, { backgroundImage: 'url(' + base + 'play.png)' });
-		if (player) {
+		if (player && player.pauseVideo) {
 			player.pauseVideo();
 		}
 	}
@@ -750,12 +755,12 @@
 		if (!playing || !playing.paused) return;
 		playing.paused = false;
 		setStyle(dom.controlsPause, { backgroundImage: 'url(' + base + 'pause.png)' });
-		if (player) {
+		if (player && player.playVideo) {
 			player.playVideo();
 		}
 	}
 	function gotSeek(time) {
-		if (!playing || !player) return;
+		if (!playing || !player || !player.seekTo) return;
 		player.seekTo(time, true);
 	}
 
