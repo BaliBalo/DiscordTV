@@ -7,13 +7,21 @@ const DAY = 24 * HOUR;
 function parseDuration(duration) {
 	if (!isNaN(duration)) return +duration;
 	if (typeof duration !== 'string') return 0;
-	let match = duration.match(/^P(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)$/) || [];
-	let v = n => match[n] || 0;
+	let match = duration.match(/^P(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/) || [];
+	let v = n => +match[n] || 0;
 	return v(1) * DAY + v(2) * HOUR + v(3) * MINUTE + v(4) * SECOND;
 }
 
 function getVideoInfo(id) {
 	if (!id) return Promise.reject('Invalid ID');
+	if (id === 'debug') {
+		return Promise.resolve({
+			id: '6Ppk-lfuNB8',
+			title: 'Killer Piller - Goto80',
+			channel: 'Harry Wootten',
+			duration: 198
+		});
+	}
 	return request({
 		uri: 'https://www.googleapis.com/youtube/v3/videos',
 		qs: {
