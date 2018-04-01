@@ -1,5 +1,14 @@
 (function() {
 
+	let winObj = window.__DISCORDTV__;
+	if (winObj && !winObj.removed) {
+		winObj.remove();
+	}
+	winObj = window.__DISCORDTV__ = {
+		removed: false,
+		remove: remove
+	};
+
 	let base = 'https://discordtv.balibalo.xyz/';
 	if (location.hostname === 'localhost') {
 		base = '/';
@@ -50,7 +59,8 @@
 		muted: false,
 		position: [100, 30],
 		anchor: ['left', 'top'],
-		size: [360, 360 / ratio]
+		size: [360, 360 / ratio],
+		visible: true
 	};
 	let minWidth = 200;
 	let collapsed = true;
@@ -76,6 +86,31 @@
 			controlsShown = shouldControlsBeShown;
 			updateControlsStatus();
 		}
+	}
+	function docKeyDown(e) {
+		let ctrl = e.ctrlKey || e.metaKey;
+		let shift = e.shiftKey;
+		let key = e.keyCode;
+		// Control+Shift+Y
+		if (ctrl && shift && key === 89) {
+			toggleVisibility();
+			e.preventDefault();
+			return;
+		}
+		// Control+M
+		if (ctrl && key === 77) {
+			toggleMute();
+			e.preventDefault();
+			return;
+		}
+	}
+
+	function toggleVisibility() {
+		let visible = preferences.visible;
+		setStyle(dom.main, {
+			visibility: visible ? 'hidden' : 'visible'
+		});
+		updatePreference('visible', !visible);
 	}
 
 	let grabbedAt = null;
@@ -367,6 +402,15 @@
 		}
 	}
 
+	function toggleMute() {
+		let muted = preferences.muted;
+		if (player && player.mute) {
+			player[muted ? 'unMute' : 'mute']();
+		}
+		refreshVolume(undefined, !muted);
+		updatePreference('muted', !muted);
+	}
+
 	// TODO createBar function used for volume + progress
 	// Fun little function here, code folding recommended
 	function createElements() {
@@ -497,13 +541,7 @@
 		dom.controlsMute = create('button', Object.assign({}, controlsButton, {
 			backgroundImage: 'url(' + base + 'volume.png)',
 		}));
-		dom.controlsMute.addEventListener('click', () => {
-			if (!player) return;
-			let muted = player.isMuted();
-			player[muted ? 'unMute' : 'mute']();
-			refreshVolume(undefined, !muted);
-			updatePreference('muted', !muted);
-		});
+		dom.controlsMute.addEventListener('click', toggleMute);
 		dom.controlsVolume = create({
 			flex: '1 1 auto',
 			margin: '0 5px'
@@ -626,6 +664,8 @@
 
 		document.addEventListener('mousemove', docMouseMove);
 		document.addEventListener('mouseup', docMouseUp);
+		document.addEventListener('keydown', docKeyDown);
+		window.addEventListener('resize', updatePosition);
 
 		dom.topBar.appendChild(dom.requestButton);
 		dom.info.appendChild(dom.title);
@@ -668,29 +708,36 @@
 		document.body.appendChild(dom.main);
 	}
 
-	function playVideo(data) {
+	function stopVideo() {
+		playing = null;
+		collapsed = true;
+		if (sizerGrabbed) {
+			releaseSizer();
+		}
+		updateControlsStatus();
+		dom.title.textContent = '';
+		dom.user.textContent = '';
+		dom.controlsProgressTextCurrent.textContent = formatTime(0);
+		dom.controlsProgressTextTotal.textContent = formatTime(0);
+		setStyle(dom.link, { width: '0', transitionDelay: '0s' });
+		setStyle(dom.main, { width: '100px', transitionDelay: '.25s' });
+		setStyle(dom.playerWrapper, { height: '0', transitionDelay: '0s' });
+		setStyle(dom.controlsProgressThumb, { left: '0%' });
+		setStyle(dom.controlsProgressBar, {
+			backgroundSize: '0% 2px, 100% 2px'
+		});
+		if (player) {
+			player.destroy();
+			player = null;
+		}
+	}
+
+	function playVideo(data, soft) {
 		let receivedAt = Date.now();
 		if (!data || !data.id || data.currentTime >= data.duration) {
-			playing = null;
-			collapsed = true;
-			if (sizerGrabbed) {
-				releaseSizer();
-			}
-			updateControlsStatus();
-			dom.title.textContent = '';
-			dom.user.textContent = '';
-			dom.controlsProgressTextCurrent.textContent = formatTime(0);
-			dom.controlsProgressTextTotal.textContent = formatTime(0);
-			setStyle(dom.link, { width: '0', transitionDelay: '0s' });
-			setStyle(dom.main, { width: '100px', transitionDelay: '.25s' });
-			setStyle(dom.playerWrapper, { height: '0', transitionDelay: '0s' });
-			setStyle(dom.controlsProgressThumb, { left: '0%' });
-			setStyle(dom.controlsProgressBar, {
-				backgroundSize: '0% 2px, 100% 2px'
-			});
-			if (player) {
-				player.destroy();
-				player = null;
+			// stopVideo();
+			if (!soft) {
+				stopVideo();
 			}
 			return;
 		}
@@ -706,6 +753,7 @@
 		setStyle(dom.main, { width: preferences.size[0] + 'px', transitionDelay: '0s' });
 		setStyle(dom.playerWrapper, { height: preferences.size[1] + 'px', transitionDelay: '.25s' });
 		setStyle(dom.controlsPause, { backgroundImage: 'url(' + base + (data.paused ? 'play' : 'pause') + '.png)' });
+		updateControlsStatus();
 		if (player) {
 			player.destroy();
 		}
@@ -721,6 +769,7 @@
 				modestbranding: 1,
 				rel: 0,
 				showinfo: 0,
+				iv_load_policy: 3
 			},
 			events: {
 				onReady: () => {
@@ -732,12 +781,19 @@
 						player.mute();
 					}
 					refreshVolume(volume, muted);
+					let now = Date.now();
+					let delta = (now - receivedAt) / 1000;
 					if (!data.paused) {
-						if (data.currentTime) {
+						if (data.currentTime || delta > 3) {
 							// Adjust time based based on how long it took to get ready
-							player.seekTo(data.currentTime + (Date.now() - receivedAt) / 1000, true);
+							player.seekTo(data.currentTime + delta, true);
 						}
 						player.playVideo();
+					}
+				},
+				onStateChange: event => {
+					if (event.data === YT.PlayerState.ENDED) {
+						stopVideo();
 					}
 				}
 			}
@@ -790,7 +846,7 @@
 			Object.assign(preferences, pref);
 			updatePosition();
 			updateSize();
-			setStyle(dom.main, { visibility: 'visible' });
+			setStyle(dom.main, { visibility: preferences.visible ? 'visible' : 'hidden' });
 		});
 		sendMe();
 		socket.on('reconnect', sendMe);
@@ -801,16 +857,22 @@
 		socket.emit('me', user);
 	}
 
-	let removed = false;
 	function remove() {
-		if (removed) return;
+		if (winObj.removed) return;
 		if (player) {
 			player.destroy();
 			player = null;
 		}
-		document.body.removeChild(dom.main);
-		document.removeEventListener('mousemove', docMouseMove);
-		document.removeEventListener('mouseup', docMouseUp);
+		try {
+			document.removeEventListener('mousemove', docMouseMove);
+			document.removeEventListener('mouseup', docMouseUp);
+			document.removeEventListener('keydown', docKeyDown);
+			window.removeEventListener('resize', updatePosition);
+			document.body.removeChild(dom.main);
+		} catch(e) {
+			console.log('Could not remove from dom', e);
+		}
+		winObj.removed = true;
 	}
 
 	window.onYouTubeIframeAPIReady = function() {
