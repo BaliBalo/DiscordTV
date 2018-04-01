@@ -34,11 +34,15 @@ function getVideoInfo(id) {
 	}).then(data => {
 		let vid = data.items[0];
 		if (!vid) return undefined;
+		let duration = parseDuration(vid.contentDetails.duration);
+		if (vid.snippet.liveBroadcastContent === 'live') {
+			duration = Infinity;
+		}
 		return {
 			id: vid.id,
 			title: vid.snippet.title,
 			channel: vid.snippet.channelTitle,
-			duration: parseDuration(vid.contentDetails.duration)
+			duration: duration
 		};
 	});
 }
