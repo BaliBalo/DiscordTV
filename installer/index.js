@@ -1,11 +1,18 @@
 const path = require('path');
 const fs = require('fs');
+const readline = require('readline');
+const psList = require('ps-list');
 const rimraf = require('rimraf');
 const asar = require('asar');
 
+const rl = readline.createInterface({
+	input: process.stdin,
+	output: process.stdout
+});
+
 const extraCode = `
 if (mainWindow.webContents && mainWindow.webContents.getURL().startsWith(WEBAPP_ENDPOINT)) {
-  mainWindow.webContents.executeJavaScript('(d=>d.body.appendChild(d.createElement("script")).src="https://discordtv.balibalo.xyz/client.js")(document);');
+	mainWindow.webContents.executeJavaScript('(d=>d.body.appendChild(d.createElement("script")).src="https://discordtv.balibalo.xyz/client.js")(document);');
 }
 `;
 
@@ -20,54 +27,115 @@ function getDataRoot() {
 	}
 }
 
-const isDirectory = source => fs.lstatSync(source).isDirectory();
-let discordDesktopCorePath;
-try {
-	let source = path.join(getDataRoot(), 'discord');
-	let versionDirectories = fs.readdirSync(source).filter(dir => {
-		if (!isDirectory(path.join(source, dir))) return false;
-		return dir.match(/^\d+\.\d+(\.\d+(\.\d+)?)?$/);
-	}).sort((a, b) => {
-		let as = a.split('.');
-		let bs = b.split('.');
-		for (let i = 0, l = Math.min(as.length, bs.length); i < l; i++) {
-			let d = bs[i] - as[i];
-			if (d) return d;
-		}
-		return 0;
+function waitAndExit() {
+	rl.question('[Press enter to exit]', (answer) => {
+		rl.close();
+		process.exit();
 	});
-	let mostRecent = versionDirectories[0];
-	console.log('Discord version', mostRecent);
-	if (!mostRecent) throw 'not found';
-	discordDesktopCorePath = path.join(source, mostRecent, 'modules', 'discord_desktop_core');
-	if (!fs.existsSync(discordDesktopCorePath)) throw 'not found';
-} catch (e) {
-	console.log('Cannot find Discord path');
-	process.exit();
 }
 
-const discordDesktopCore = path.join(discordDesktopCorePath, 'core.asar');
+let discordProcess;
+function closeDiscord() {
+	console.log('Making sure Discord is closed');
+	psList().then(list => {
+		let proc = list.find(p => p.name.toLowerCase().includes('discord'));
+		if (proc) {
+			process.kill(proc.pid);
+		}
+		getDiscordDesktopCorePath();
+	}).catch(e => {
+		console.log('Error while trying to close Discord', e);
+		rl.question('[Type yes to try the installation anyway, enter to exit]', (answer) => {
+			if (answer !== 'yes') {
+				rl.close();
+				process.exit();
+				return;
+			}
+			getDiscordDesktopCorePath();
+		});
+	});
+}
 
 const tempPath = path.join(getDataRoot(), 'DiscordTV', '__tmp');
+let discordDesktopCorePath;
+let discordDesktopCore;
 
-console.log('Extracting', discordDesktopCore);
-asar.extractAll(discordDesktopCore, tempPath);
-
-let file = path.join(tempPath, 'app', 'mainScreen.js');
-let data = fs.readFileSync(file, 'utf-8');
-if (data.indexOf('discordtv.balibalo.xyz') !== -1) {
-	console.log('Already installed');
-	process.exit();
+const isDirectory = source => fs.lstatSync(source).isDirectory();
+function getDiscordDesktopCorePath() {
+	try {
+		let source = path.join(getDataRoot(), 'discord');
+		let versionDirectories = fs.readdirSync(source).filter(dir => {
+			if (!isDirectory(path.join(source, dir))) return false;
+			return dir.match(/^\d+\.\d+(\.\d+(\.\d+)?)?$/);
+		}).sort((a, b) => {
+			let as = a.split('.');
+			let bs = b.split('.');
+			for (let i = 0, l = Math.min(as.length, bs.length); i < l; i++) {
+				let d = bs[i] - as[i];
+				if (d) return d;
+			}
+			return 0;
+		});
+		let mostRecent = versionDirectories[0];
+		console.log('Discord version', mostRecent);
+		if (!mostRecent) throw 'not found';
+		discordDesktopCorePath = path.join(source, mostRecent, 'modules', 'discord_desktop_core');
+		if (!fs.existsSync(discordDesktopCorePath)) throw 'discord_desktop_core not found';
+		extractAsar();
+	} catch (e) {
+		console.log('Cannot find Discord path', e);
+		waitAndExit();
+	}
 }
-console.log('Adding the cusom code');
-data = data.replace(/(mainWindow\.webContents\.on\('did-finish-load'[^{]+\{)/, '$1' + extraCode.replace(/\$/g, '$$$$'));
-fs.writeFileSync(file, data, 'utf-8');
 
-console.log('Recompiling');
-// Move the original file as a backup
-fs.renameSync(discordDesktopCore, path.join(discordDesktopCorePath, 'core_' + Date.now() + '.asar'))
-asar.createPackage(tempPath, discordDesktopCore, recompiled);
-
-function recompiled() {
-	rimraf(tempPath, function () { console.log('Done'); process.exit(); });
+function extractAsar() {
+	discordDesktopCore = path.join(discordDesktopCorePath, 'core.asar');
+	console.log('Extracting', discordDesktopCore);
+	try {
+		asar.extractAll(discordDesktopCore, tempPath);
+		insertCode();
+	} catch (e) {
+		console.log('Error extracting archive', e);
+		waitAndExit();
+	}
 }
+
+function insertCode() {
+	try {
+		let file = path.join(tempPath, 'app', 'mainScreen.js');
+		let data = fs.readFileSync(file, 'utf-8');
+		if (data.indexOf('discordtv.balibalo.xyz') !== -1) {
+			console.log('Already installed');
+			return waitAndExit();
+		}
+		console.log('Adding the cusom code');
+		data = data.replace(/(mainWindow\.webContents\.on\('did-finish-load'[^{]+\{)/, '$1' + extraCode.replace(/\$/g, '$$$$'));
+		fs.writeFileSync(file, data, 'utf-8');
+		recompile();
+	} catch (e) {
+		console.log('Error adding custom code', e);
+		waitAndExit();
+	}
+}
+
+function recompile() {
+	console.log('Recompiling');
+	try {
+		// Move the original file as a backup
+		fs.renameSync(discordDesktopCore, path.join(discordDesktopCorePath, 'core_' + Date.now() + '.asar'))
+		asar.createPackage(tempPath, discordDesktopCore, cleanup);
+	} catch (e) {
+		console.log('Error recompiling discord', e);
+		waitAndExit();
+	}
+}
+
+function cleanup() {
+	rimraf(tempPath, function () {
+		console.log('Done.');
+		waitAndExit();
+	});
+}
+
+// Start the install process
+closeDiscord();
