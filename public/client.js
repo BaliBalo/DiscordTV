@@ -315,7 +315,7 @@
 		moveProgress(e);
 	}
 	function moveProgress(e) {
-		if (!progressGrabbed || !playing) return;
+		if (!progressGrabbed || !playing || !playing.duration) return;
 		e.preventDefault();
 		let barRect = dom.controlsProgressBar.getBoundingClientRect();
 		let progress = clamp((e.clientX - barRect.left) / barRect.width, 0, 1);
@@ -733,7 +733,7 @@
 
 	function playVideo(data, soft) {
 		let receivedAt = Date.now();
-		if (!data || !data.id || data.currentTime >= data.duration) {
+		if (!data || !data.id || (data.duration && data.currentTime >= data.duration)) {
 			// stopVideo();
 			if (!soft) {
 				stopVideo();
@@ -746,8 +746,13 @@
 		let user = data.startedBy && data.startedBy.username || '';
 		dom.user.textContent = user;
 		dom.link.href = 'https://www.youtube.com/watch?v=' + data.id;
-		dom.controlsProgressTextCurrent.textContent = formatTime(data.currentTime);
-		dom.controlsProgressTextTotal.textContent = formatTime(data.duration);
+		if (data.duration) {
+			dom.controlsProgressTextCurrent.textContent = formatTime(data.currentTime);
+			dom.controlsProgressTextTotal.textContent = formatTime(data.duration);
+		} else {
+			dom.controlsProgressTextCurrent.textContent = 'live';
+			dom.controlsProgressTextTotal.textContent = 'live';
+		}
 		setStyle(dom.link, { width: '30px', transitionDelay: '.25s' });
 		setStyle(dom.main, { width: preferences.size[0] + 'px', transitionDelay: '0s' });
 		setStyle(dom.playerWrapper, { height: preferences.size[1] + 'px', transitionDelay: '.25s' });
@@ -756,20 +761,23 @@
 		if (player) {
 			player.destroy();
 		}
+		let playerVars = {
+			// Disable autoplay to ba able to adjust the volume before playing
+			autoplay: 0,
+			// autoplay: data.paused ? 0 : 1,
+			controls: 0,
+			disablekb: 1,
+			modestbranding: 1,
+			rel: 0,
+			showinfo: 0,
+			iv_load_policy: 3
+		};
+		if (data.duration) {
+			playerVars.start = Math.round(data.currentTime);
+		}
 		player = new YT.Player(dom.player.id, {
 			videoId: data.id,
-			playerVars: {
-				// Disable autoplay to ba able to adjust the volume before playing
-				autoplay: 0,
-				// autoplay: data.paused ? 0 : 1,
-				start: Math.round(data.currentTime),
-				controls: 0,
-				disablekb: 1,
-				modestbranding: 1,
-				rel: 0,
-				showinfo: 0,
-				iv_load_policy: 3
-			},
+			playerVars: playerVars,
 			events: {
 				onReady: () => {
 					if (!player) return;
@@ -783,7 +791,7 @@
 					let now = Date.now();
 					let delta = (now - receivedAt) / 1000;
 					if (!data.paused) {
-						if (data.currentTime || delta > 3) {
+						if (data.duration && (data.currentTime || delta > 3)) {
 							// Adjust time based based on how long it took to get ready
 							player.seekTo(data.currentTime + delta, true);
 						}
@@ -822,9 +830,13 @@
 	function refreshProgress() {
 		if (!playing || !player) return;
 		if (!progressGrabbed && player.getCurrentTime) {
-			let current = player.getCurrentTime();
-			dom.controlsProgressTextCurrent.textContent = formatTime(current);
-			let progress = clamp(current / playing.duration, 0, 1);
+			let current = 0;
+			let progress = 1;
+			if (playing.duration) {
+				current = player.getCurrentTime();
+				progress = clamp(current / playing.duration, 0, 1);
+				dom.controlsProgressTextCurrent.textContent = formatTime(current);
+			}
 			let percentage = progress * 100 + '%';
 			setStyle(dom.controlsProgressThumb, { left: percentage });
 			setStyle(dom.controlsProgressBar, {
