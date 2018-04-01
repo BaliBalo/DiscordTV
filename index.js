@@ -1,3 +1,4 @@
+const path = require('path');
 const request = require('request-promise-native');
 const express = require('express');
 const app = express();
@@ -5,6 +6,12 @@ const http = require('http').Server(app);
 const io = require('socket.io')(http);
 const ts = require('./utils/timestamp');
 const config = require('./config.json');
+
+const Datastore = require('nedb');
+global.preferences = new Datastore({ filename: path.join(__dirname, 'data', 'preferences.db'), autoload: true });
+global.history = new Datastore({ filename: path.join(__dirname, 'data', 'history.db'), autoload: true });
+
+global.ioUsers = {};
 
 require('./server')(io);
 

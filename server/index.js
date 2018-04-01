@@ -1,6 +1,9 @@
 const ts = require('../utils/timestamp');
 const { getVideoInfo } = require('./youtube');
 
+const preferences = global.preferences;
+const history = global.history;
+
 let lastUpdate = Date.now();
 let current = undefined;
 // {
@@ -14,9 +17,16 @@ let current = undefined;
 // 	channel: ''
 // };
 
-let users = {};
+const users = global.ioUsers;
 
-let preferences = {};
+function addToHistory(event, from, data) {
+	history.insert({
+		at: new Date(),
+		event: event,
+		user: from || null,
+		data: data || null
+	});
+}
 
 module.exports = function(io) {
 	function updateCurrent() {
@@ -26,9 +36,11 @@ module.exports = function(io) {
 		if (!current || current.paused) return;
 		current.currentTime += delta;
 		if (current.currentTime >= current.duration + 2) {
+			// let vid = current;
 			console.log(ts(), 'Stopping', current.id, 'because it ended');
 			current = undefined;
-			io.emit('play', undefined);
+			io.emit('play', undefined, true);
+			addToHistory('end', null);
 		}
 	}
 	setInterval(updateCurrent, 100);
@@ -36,9 +48,11 @@ module.exports = function(io) {
 	function setCurrent(id, user) {
 		if (!id) {
 			if (current === undefined) return Promise.resolve(false);
+			// let vid = current;
 			console.log(ts(), 'Stopping from', user && user.username);
 			current = undefined;
 			io.emit('play', undefined);
+			addToHistory('stop', user);
 			return Promise.resolve(true);
 		}
 		return getVideoInfo(id).catch(e => {
@@ -57,6 +71,7 @@ module.exports = function(io) {
 				channel: info.channel
 			};
 			io.emit('play', current);
+			addToHistory('play', user, current);
 			return true;
 		});
 	}
@@ -67,6 +82,7 @@ module.exports = function(io) {
 		console.log(ts(), 'Pausing from', user && user.username);
 		current.paused = true;
 		io.emit('pause');
+		addToHistory('pause', user);
 	}
 	function resume(user) {
 		updateCurrent();
@@ -74,6 +90,7 @@ module.exports = function(io) {
 		console.log(ts(), 'Resuming from', user && user.username);
 		current.paused = false;
 		io.emit('resume');
+		addToHistory('resume', user);
 	}
 	function seek(time, user) {
 		updateCurrent();
@@ -82,27 +99,29 @@ module.exports = function(io) {
 		// current.paused = false;
 		current.currentTime = time;
 		io.emit('seek', time);
+		addToHistory('seek', user, { to: time });
 	}
 
 	function handleUser(socket) {
-		let ip = socket.handshake.headers['x-forwarded-for'] || socket.request.connection.remoteAddress;
+		// let ip = socket.handshake.headers['x-forwarded-for'] || socket.request.connection.remoteAddress;
 
 		// console.log(ts(), 'User ' + ip + ' connected');
 		let user = {
 			id: socket.id,
-			ip: ip,
-			username: ip
+			// ip: ip,
+			// username: ip
+			username: '????'
 		};
+
+
 		users[socket.id] = user;
 		socket.on('me', data => {
 			data = data || {};
 			let username = data.username;
 			if (!username) return;
 			user.username = username;
-			if (!preferences[username]) {
-				preferences[username] = {};
-			}
-			let pref = preferences[username];
+			user.discriminator = data.discriminator;
+			user.avatar = data.avatar;
 
 			socket.on('play', id => setCurrent(id, user));
 			socket.on('stop', () => setCurrent(undefined, user));
@@ -110,13 +129,18 @@ module.exports = function(io) {
 			socket.on('resume', () => resume(user));
 			socket.on('seek', time => seek(time, user));
 			socket.on('preference', (key, value) => {
-				pref[key] = value;
+				let update = {};
+				update['data.' + key] = value;
+				preferences.update({ user: username }, { $set: update }, { upsert: true });
 			});
 
-			socket.emit('preferences', pref);
-			if (current) {
+			preferences.findOne({ user: username }, (err, pref) => {
+				if (err || !pref) {
+					pref = { data: {} };
+				}
+				socket.emit('preferences', pref.data);
 				socket.emit('play', current);
-			}
+			});
 		});
 		socket.on('disconnect', () => {
 			// console.log(ts(), 'User ' + ip + ' disconnected');
