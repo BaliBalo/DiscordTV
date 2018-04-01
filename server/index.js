@@ -103,12 +103,13 @@ module.exports = function(io) {
 	}
 
 	function handleUser(socket) {
-		// let ip = socket.handshake.headers['x-forwarded-for'] || socket.request.connection.remoteAddress;
+		let headers = socket.handshake.headers;
+		let ip = headers['x-real-ip'] || headers['x-forwarded-for'] || socket.request.connection.remoteAddress;
 
 		// console.log(ts(), 'User ' + ip + ' connected');
 		let user = {
 			id: socket.id,
-			// ip: ip,
+			ip: ip,
 			// username: ip
 			username: '????'
 		};

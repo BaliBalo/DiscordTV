@@ -882,14 +882,18 @@
 		});
 	}
 
+	function getUtilsModuleID() {
+		// Parsing discord script files to figure that out seems like a lot of work
+		return 528;
+	}
+
 	function getUser() {
 		if (window.__DISCORD_USER__) {
 			return window.__DISCORD_USER__;
 		}
 		let currentUser;
 		if (typeof webpackJsonp === 'function') {
-			// TODO: figure out module ID (526) on the fly
-			let utils = webpackJsonp([], [], [526]);
+			let utils = webpackJsonp([], [], [getUtilsModuleID()]);
 			if (utils && utils.getCurrentUser) {
 				currentUser = utils.getCurrentUser();
 			}
@@ -904,8 +908,16 @@
 		return currentUser;
 	}
 
-	user = getUser();
-	if (!user) return;
-	loadScript('https://www.youtube.com/iframe_api');
+	function tryGetUser(attempt) {
+		attempt = attempt || 0;
+		if (attempt >= 10) return;
+		user = getUser();
+		if (user) return gotUser();
+		setTimeout(() => tryGetUser(++attempt), 1000);
+	}
+	function gotUser() {
+		loadScript('https://www.youtube.com/iframe_api');
+	}
+	tryGetUser();
 
 })();
