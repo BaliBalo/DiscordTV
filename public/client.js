@@ -901,9 +901,11 @@
 		if (!currentUser) {
 			let $name = document.querySelector('.username');
 			let name = $name && $name.textContent;
-			currentUser = {
-				username: name
-			};
+			if (name) {
+				currentUser = {
+					username: name
+				};
+			}
 		}
 		return currentUser;
 	}
