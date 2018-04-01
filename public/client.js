@@ -664,7 +664,6 @@
 
 		document.addEventListener('mousemove', docMouseMove);
 		document.addEventListener('mouseup', docMouseUp);
-		document.addEventListener('keydown', docKeyDown);
 		window.addEventListener('resize', updatePosition);
 
 		dom.topBar.appendChild(dom.requestButton);
@@ -844,6 +843,7 @@
 		socket.on('seek', gotSeek);
 		socket.on('preferences', pref => {
 			Object.assign(preferences, pref);
+			document.addEventListener('keydown', docKeyDown);
 			updatePosition();
 			updateSize();
 			setStyle(dom.main, { visibility: preferences.visible ? 'visible' : 'hidden' });
@@ -876,10 +876,14 @@
 	}
 
 	window.onYouTubeIframeAPIReady = function() {
-		loadScript(base + 'socket.io/socket.io.js', function() {
+		let callback = () => {
 			socket = io(base);
 			ready();
-		});
+		};
+		if (window.io) {
+			return callback();
+		}
+		loadScript(base + 'socket.io/socket.io.js', callback);
 	}
 
 	function getUtilsModuleID() {
@@ -918,6 +922,9 @@
 		setTimeout(() => tryGetUser(++attempt), 1000);
 	}
 	function gotUser() {
+		if (window.YT) {
+			return window.onYouTubeIframeAPIReady();
+		}
 		loadScript('https://www.youtube.com/iframe_api');
 	}
 	tryGetUser();
