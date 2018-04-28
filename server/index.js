@@ -123,6 +123,7 @@ module.exports = function(io) {
 			user.username = username;
 			user.discriminator = data.discriminator;
 			user.avatar = data.avatar;
+			user.discordId = data.id;
 
 			socket.on('play', id => setCurrent(id, user));
 			socket.on('stop', () => setCurrent(undefined, user));

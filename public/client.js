@@ -900,7 +900,7 @@
 
 	function getUtilsModuleID() {
 		// Parsing discord script files to figure that out seems like a lot of work
-		return 528;
+		return 408;
 	}
 
 	function getUser() {
@@ -909,10 +909,12 @@
 		}
 		let currentUser;
 		if (typeof webpackJsonp === 'function') {
-			let utils = webpackJsonp([], [], [getUtilsModuleID()]);
-			if (utils && utils.getCurrentUser) {
-				currentUser = utils.getCurrentUser();
-			}
+			try {
+				let utils = webpackJsonp([], [], [getUtilsModuleID()]);
+				if (utils && utils.getCurrentUser) {
+					currentUser = utils.getCurrentUser();
+				}
+			} catch(e) {}
 		}
 		if (!currentUser) {
 			let $name = document.querySelector('.username');
