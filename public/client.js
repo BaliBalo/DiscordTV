@@ -898,9 +898,15 @@
 		loadScript(base + 'socket.io/socket.io.js', callback);
 	}
 
-	function getUtilsModuleID() {
-		// Parsing discord script files to figure that out seems like a lot of work
-		return 408;
+	function getUtilsModule() {
+		let val = undefined;
+		let found = [...Array(5000)].findIndex((e,i) => {
+			try {
+				let val = webpackJsonp.push([[], [], [[i]]]);
+				return val && typeof val.getCurrentUser === 'function';
+			} catch(e) {}
+		});
+		return found === undefined ? null : val;
 	}
 
 	function getUser() {
@@ -908,13 +914,9 @@
 			return window.__DISCORD_USER__;
 		}
 		let currentUser;
-		if (typeof webpackJsonp === 'function') {
-			try {
-				let utils = webpackJsonp([], [], [getUtilsModuleID()]);
-				if (utils && utils.getCurrentUser) {
-					currentUser = utils.getCurrentUser();
-				}
-			} catch(e) {}
+		let utils = getUtilsModule();
+		if (utils) {
+			currentUser = utils.getCurrentUser();
 		}
 		if (!currentUser) {
 			let $name = document.querySelector('.username');

@@ -11,9 +11,22 @@ const rl = readline.createInterface({
 });
 
 const extraCode = `
-if (mainWindow.webContents && mainWindow.webContents.getURL().startsWith(WEBAPP_ENDPOINT)) {
-	mainWindow.webContents.executeJavaScript('(d=>d.body.appendChild(d.createElement("script")).src="https://discordtv.balibalo.xyz/client.js")(document);');
-}
+  /* DISCORDTV_START 1.2 */
+  mainWindow.webContents.on('did-finish-load', function () {
+    if (mainWindow.webContents && mainWindow.webContents.getURL().startsWith(WEBAPP_ENDPOINT)) {
+      mainWindow.webContents.executeJavaScript('(d=>d.body.appendChild(d.createElement("script")).src="https://discordtv.balibalo.xyz/client.js")(document);');
+    }
+  });
+  mainWindow.webContents.session.webRequest.onHeadersReceived(function (details, callback) {
+    var resHeaders = details.responseHeaders || {};
+    delete resHeaders['content-security-policy'];
+    callback({
+      cancel: false,
+      responseHeaders: resHeaders
+    });
+  });
+  /* DISCORDTV_END */
+
 `;
 
 function getDataRoot() {
@@ -46,7 +59,7 @@ function closeDiscord() {
 	}).catch(e => {
 		console.log('Error while trying to close Discord', e);
 		rl.question('[Type yes to try the installation anyway, enter to exit]', (answer) => {
-			if (answer !== 'yes') {
+			if (!answer || answer[0] !== 'y') {
 				rl.close();
 				process.exit();
 				return;
@@ -83,7 +96,7 @@ function getDiscordDesktopCorePath() {
 		if (!fs.existsSync(discordDesktopCorePath)) throw 'discord_desktop_core not found';
 		extractAsar();
 	} catch (e) {
-		console.log('Cannot find Discord path', e);
+		console.log('Cannot find Discord path -', e);
 		waitAndExit();
 	}
 }
@@ -95,7 +108,7 @@ function extractAsar() {
 		asar.extractAll(discordDesktopCore, tempPath);
 		insertCode();
 	} catch (e) {
-		console.log('Error extracting archive', e);
+		console.log('Error extracting archive -', e);
 		waitAndExit();
 	}
 }
@@ -109,11 +122,11 @@ function insertCode() {
 			return waitAndExit();
 		}
 		console.log('Adding the cusom code');
-		data = data.replace(/(mainWindow\.webContents\.on\('did-finish-load'[^{]+\{)/, '$1' + extraCode.replace(/\$/g, '$$$$'));
+		data = data.replace(/(mainWindow\.webContents\.on\('new-window')/, extraCode.replace(/\$/g, '$$') + '$1');
 		fs.writeFileSync(file, data, 'utf-8');
 		recompile();
 	} catch (e) {
-		console.log('Error adding custom code', e);
+		console.log('Error adding custom code -', e);
 		waitAndExit();
 	}
 }
@@ -122,10 +135,10 @@ function recompile() {
 	console.log('Recompiling');
 	try {
 		// Move the original file as a backup
-		fs.renameSync(discordDesktopCore, path.join(discordDesktopCorePath, 'core_' + Date.now() + '.asar'))
+		fs.renameSync(discordDesktopCore, path.join(discordDesktopCorePath, 'core_' + Date.now() + '.asar'));
 		asar.createPackage(tempPath, discordDesktopCore, cleanup);
 	} catch (e) {
-		console.log('Error recompiling discord', e);
+		console.log('Error recompiling discord -', e);
 		waitAndExit();
 	}
 }
