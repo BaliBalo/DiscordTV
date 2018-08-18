@@ -91,9 +91,7 @@ function restore() {
 		}).filter(e => e.ts).sort((a, b) => b.ts - a.ts)[0];
 		if (!previous) throw 'original version not found';
 		console.log('Using version from ' + new Date(previous.ts));
-		try {
-			fs.renameSync(path.join(discordDesktopCorePath, 'core.asar'), path.join(discordDesktopCorePath, 'core_dtv.asar'));
-		} catch(e) {}
+		fs.renameSync(path.join(discordDesktopCorePath, 'core.asar'), path.join(discordDesktopCorePath, 'core_dtv_' + Date.now() + '.asar'));
 		fs.renameSync(path.join(discordDesktopCorePath, previous.file), path.join(discordDesktopCorePath, 'core.asar'));
 		console.log('Done.');
 		waitAndExit();
