@@ -902,7 +902,7 @@
 		let val = undefined;
 		let found = [...Array(5000)].findIndex((e,i) => {
 			try {
-				let val = webpackJsonp.push([[], [], [[i]]]);
+				val = webpackJsonp.push([[], [], [[i]]]);
 				return val && typeof val.getCurrentUser === 'function';
 			} catch(e) {}
 		});

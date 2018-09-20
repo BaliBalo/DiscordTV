@@ -17,7 +17,7 @@ require('./server')(io);
 
 let users = {};
 if (config.debugMode) {
-	let users = {
+	users = {
 		bbbotmaster: Promise.resolve({
 			"username": "Bali Balo",
 			"discriminator": "5436",
