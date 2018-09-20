@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<title>Historik</title>
+	<style>
+		body {
+			background: #fefefe;
+			margin: 0;
+			font-family: Calibri,Candara,Segoe,"Segoe UI",Optima,Arial,sans-serif;
+		}
+		.main {
+			max-width: 1000px;
+			margin: 0 auto;
+			background: #fff;
+		}
+		.loading:after {
+			content: 'Chargement...';
+			display: block;
+			text-align: center;
+			margin: 10px 0;
+		}
+		.video {
+			display: flex;
+			flex-flow: row nowrap;
+			/* background: linear-gradient(to top, blue, transparent 100px); */
+			background: linear-gradient(to top, rgba(0, 0, 0, .01), rgba(0, 0, 0, 0) 50px);
+			border-bottom: 1px solid #ccc;
+		}
+		.infos {
+			flex: 0 0 auto;
+			border-right: 1px solid #fcfcfc;
+			padding: 12px;
+		}
+		.thumbnail-wrapper {
+			position: relative;
+			font-size: 0;
+			display: block;
+		}
+		.thumbnail {
+			width: 240px;
+		}
+		.duration {
+			position: absolute;
+			bottom: 0;
+			right: 0;
+			background: rgba(0, 0, 0, .5);
+			color: #fff;
+			font-family: Consolas,monaco,monospace;
+			font-size: 10px;
+			padding: 3px 6px;
+		}
+		.title {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			box-sizing: border-box;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			background: linear-gradient(to bottom, rgba(0, 0, 0, 1), rgba(0, 0, 0, 0));
+			padding: 3px 6px;
+			color: #fff;
+			font-size: .9rem;
+		}
+		.events {
+			flex: 1 1 auto;
+			padding: 12px;
+			display: flex;
+			flex-flow: column nowrap;
+			justify-content: flex-end;
+		}
+		.ts {
+			font-family: Consolas,monaco,monospace;
+			font-size: .75em;
+			color: #666;
+			margin-right: 4px;
+		}
+		.user {
+			font-weight: bold;
+		}
+		.pp {
+			width: 20px;
+			height: 20px;
+			border-radius: 50%;
+			vertical-align: middle;
+		}
+		@media (max-width: 1024px) {
+			html {
+				font-size: 14px;
+			}
+			.thumbnail {
+				width: 120px;
+			}
+		}
+	</style>
+</head>
+<body>
+	<div class="main">
+
+	</div>
+	<script>
+		let $main = document.querySelector('.main');
+		let allEvents = {};
+		let earliest = Date.now();
+		let hasMore = true;
+		let sentences = {
+			play: 'Lancée par %user%',
+			seek: 'Déplacement à %+to%s par %user%',
+			pause: 'Pausée par %user%',
+			resume: 'Relancée par %user%',
+			stop: 'Arrêtée par %user%',
+			end: 'Finie',
+		};
+		function domUser(user) {
+			// let elem = document.createElement();
+			let img = '';
+			if (user.discordId && user.avatar) {
+				let imgSrc = 'https://cdn.discordapp.com/avatars/' + user.discordId + '/' + user.avatar + '.png';
+				img = '<img src="'+imgSrc+'" class="pp" /> ';
+			}
+			return '<span class="user">'+img+user.username+'</span>';
+		}
+		function pad2(n) { return ('0' + n).slice(-2); }
+		function domEvent(evt) {
+			let date = [evt.at.getDate(), evt.at.getMonth() + 1, evt.at.getFullYear()].map(pad2).join('/');
+			let time = [evt.at.getHours(), evt.at.getMinutes(), evt.at.getSeconds()].map(pad2).join(':');
+			let elem = document.createElement('div');
+			elem.className = 'event';
+			let timestamp = document.createElement('span');
+			timestamp.className = 'ts';
+			timestamp.textContent = '['+date+' '+time+']';
+			elem.appendChild(timestamp);
+			let text = document.createElement('span');
+			text.className = 'description';
+			let textContent = sentences[evt.event] || evt.event;
+			textContent = textContent.replace(/%([^% ]+)%/g, (m, s) => {
+				if (s === 'user') {
+					return domUser(evt.user);
+				}
+				if (s[0] === '+') {
+					return ~~(+evt.data[s.slice(1)]);
+				}
+				return m;
+			});
+			text.innerHTML = textContent;
+			elem.appendChild(text);
+			return elem;
+		}
+		function formatTime(seconds) {
+			seconds = ~~seconds;
+			let s = seconds % 60;
+			let minutes = ~~(seconds / 60);
+			let m = minutes % 60;
+			let h = ~~(minutes / 60);
+			return (h ? h + ':' : '') + m + ':' + ('0' + s).slice(-2);
+		}
+		function domVidInfos(vid) {
+			let elem = document.createElement('div');
+			elem.className = 'infos';
+			let wrapper = document.createElement('a');
+			wrapper.className = 'thumbnail-wrapper';
+			wrapper.href = 'https://youtube.com/watch?v='+vid.id;
+			wrapper.target = '_blank';
+			// channel: "XxkillerinmexX"
+			// currentTime: 0
+			// duration: 279
+			// id: "vyut3GyQtn0"
+			// paused: false
+			// startAt: 1537135150512
+			// startedBy: {id: "Au5KdKW0DtweibvcAAAB", ip: "::1", username: "Bali Balo", discriminator: "5436", avatar: "2779a3a810879b93f81e76c76ba59cc0", …}
+			// title: "Breathe - Télépopmusik"
+			let thumbnail = document.createElement('img');
+			thumbnail.className = 'thumbnail';
+			thumbnail.src = 'https://img.youtube.com/vi/'+vid.id+'/hqdefault.jpg';
+			let dur = document.createElement('div');
+			dur.className = 'duration';
+			dur.textContent = vid.duration ? formatTime(vid.duration) : 'live';
+			let title = document.createElement('div');
+			title.className = 'title';
+			title.textContent = vid.title;
+			title.title = vid.title;
+			wrapper.appendChild(thumbnail);
+			wrapper.appendChild(dur);
+			wrapper.appendChild(title);
+			elem.appendChild(wrapper);
+			return elem;
+		}
+		function refresh() {
+			let current = [];
+			let list = [];
+			Object.values(allEvents).sort((a, b) => b.at - a.at).forEach(evt => {
+				current.push(evt);
+				if (evt.event === 'play') {
+					list.push(current);
+					current = [];
+				}
+			});
+			$main.innerHTML = '';
+			list.forEach(vidEvents => {
+				// let playData = vidEvents.pop();
+				let playData = vidEvents[vidEvents.length - 1];
+				if (!playData || playData.event !== 'play') {
+					return;
+				}
+				let vid = playData.data;
+				let dom = document.createElement('div');
+				dom.className = 'video';
+				dom.appendChild(domVidInfos(vid));
+				let events = document.createElement('div');
+				events.className = 'events';
+				vidEvents.forEach(ev => events.appendChild(domEvent(ev)));
+				dom.appendChild(events);
+				$main.appendChild(dom);
+			});
+		}
+		let loading = false;
+		function setLoading(val) {
+			loading = val;
+			$main.classList[loading ? 'add' : 'remove']('loading');
+		}
+		function getData(options) {
+			if (loading || !hasMore) {
+				return;
+			}
+			setLoading(true);
+			let qs = options ? '?' + Object.keys(options).map(k => [k, options[k]].map(e => encodeURIComponent(e)).join('=')).join('&') : '';
+			return fetch('history.json' + qs).then(r => r.json()).then(d => {
+				if (!d.length) {
+					hasMore = false;
+					setLoading(false);
+					return;
+				}
+				d.forEach(evt => {
+					evt.at = new Date(evt.at);
+					earliest = Math.min(earliest, evt.at);
+					allEvents[evt._id] = evt;
+				});
+				refresh();
+				setLoading(false);
+				checkScroll();
+			}).catch(e => setLoading(false));
+		}
+		function getNext() {
+			getData({ before: +earliest });
+		}
+		function checkScroll() {
+			let doc = document.documentElement;
+			if (doc.scrollTop > doc.scrollHeight - doc.clientHeight - 10) {
+				getNext();
+			}
+		}
+		getData();
+		window.addEventListener('scroll', checkScroll);
+	</script>
+</body>
+</html>

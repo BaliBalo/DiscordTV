@@ -16,6 +16,17 @@ global.ioUsers = {};
 require('./server')(io);
 
 let users = {};
+if (config.debugMode) {
+	let users = {
+		bbbotmaster: Promise.resolve({
+			"username": "Bali Balo",
+			"discriminator": "5436",
+			"mfa_enabled": false,
+			"id": "125119938603122688",
+			"avatar": "2779a3a810879b93f81e76c76ba59cc0"
+		})
+	};
+}
 app.get('/user-info', (req, res) => {
 	const code = req.query.code;
 	if (!code) {
@@ -56,6 +67,26 @@ app.get('/user-info', (req, res) => {
 		});
 	}
 	users[code].then(data => res.send(data));
+});
+
+app.get('/users.json', (req, res) => {
+	res.send(global.ioUsers);
+});
+
+app.get('/history.json', (req, res) => {
+	let query = req.query;
+	let before = new Date();
+	if (query.before) {
+		before = new Date(+query.before || query.before);
+	}
+	let count = +query.count || 50;
+	let at = { $lt: before };
+	if (query.after) {
+		at.$gt = new Date(+query.after || query.after);
+	}
+	let data = global.history.find({ at }).sort({ at: -1 }).limit(count).exec((err, data) => {
+		res.send(data || {});
+	});
 });
 
 app.use(express.static('public'));
