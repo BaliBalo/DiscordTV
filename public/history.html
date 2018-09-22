@@ -118,12 +118,11 @@
 			end: 'Finie',
 		};
 		function domUser(user) {
-			// let elem = document.createElement();
 			let img = '';
-			if (user.discordId && user.avatar) {
-				let imgSrc = 'https://cdn.discordapp.com/avatars/' + user.discordId + '/' + user.avatar + '.png';
-				img = '<img src="'+imgSrc+'" class="pp" /> ';
-			}
+			// if (user.discordId && user.avatar) {
+			// 	let imgSrc = 'https://cdn.discordapp.com/avatars/' + user.discordId + '/' + user.avatar + '.png';
+			// 	img = '<img src="'+imgSrc+'" class="pp" /> ';
+			// }
 			return '<span class="user">'+img+user.username+'</span>';
 		}
 		function pad2(n) { return ('0' + n).slice(-2); }
