@@ -25,7 +25,7 @@ let serverUsersTimer;
 function refreshServerUsers() {
 	clearTimeout(serverUsersTimer);
 	// Requesting data from bbbbot
-	request({ url: 'https://localhost:3000/users', json: true }).then(res => {
+	request({ url: 'http://127.0.0.1:3000/users', json: true }).then(res => {
 		serverUsers = res;
 	}).catch(e => e).then(() => {
 		serverUsersTimer = setTimeout(refreshServerUsers, 10000);
