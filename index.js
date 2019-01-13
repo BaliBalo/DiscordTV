@@ -72,6 +72,17 @@ app.get('/user-info', (req, res) => {
 app.get('/users.json', (req, res) => {
 	res.send(global.ioUsers);
 });
+app.get('/preferences.json', (req, res) => {
+	if (!req.query.user) {
+		return res.status(400).send('{ "error": "Bad Request" }');
+	}
+	preferences.findOne({ user: req.query.user }, (err, pref) => {
+		if (err || !pref) {
+			pref = { data: {} };
+		}
+		res.send(pref);
+	});
+});
 
 app.get('/history.json', (req, res) => {
 	let query = req.query;
