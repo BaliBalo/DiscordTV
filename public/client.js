@@ -171,16 +171,18 @@
 			padding: '10px',
 			borderRadius: '5px',
 			fontFamily: 'sans-serif',
-			fontSize: '20px',
-			transform: 'translate(-50%, 0) scale(1)',
-			transition: 'opacity .3s 1s, transform .3s 1s',
+			fontSize: '12px',
+			whiteSpace: 'pre',
+			transform: 'translate(-50%, 0)',
+			transition: 'opacity .15s 1s, transform .15s 1s',
+			backfaceVisibility: 'hidden'
 		});
 		msg.textContent = str;
 		dom.main.appendChild(msg);
 		msg.clientWidth;
 		setStyle(msg, {
 			opacity: '0',
-			transform: 'translate(-50%, -30px) scale(.7)',
+			transform: 'translate(-50%, 30px)',
 		});
 		setTimeout(() => dom.main.removeChild(msg), 1500);
 	}
