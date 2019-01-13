@@ -1,5 +1,6 @@
 const ts = require('../utils/timestamp');
 const { getVideoInfo } = require('./youtube');
+const request = require('request-promise-native');
 
 const preferences = global.preferences;
 const history = global.history;
@@ -18,6 +19,19 @@ let current = undefined;
 // };
 
 const users = global.ioUsers;
+
+let serverUsers = {};
+let serverUsersTimer;
+function refreshServerUsers() {
+	clearTimeout(serverUsersTimer);
+	// Requesting data from bbbbot
+	request({ url: 'https://localhost:3000/users', json: true }).then(res => {
+		serverUsers = res;
+	}).catch(e => e).then(() => {
+		serverUsersTimer = setTimeout(refreshServerUsers, 10000);
+	});
+}
+refreshServerUsers();
 
 function addToHistory(event, from, data) {
 	history.insert({
@@ -46,6 +60,9 @@ module.exports = function(io) {
 	setInterval(updateCurrent, 100);
 
 	function setCurrent(id, user) {
+		if (!checkUser(user)) {
+			return;
+		}
 		if (!id) {
 			if (current === undefined) return Promise.resolve(false);
 			// let vid = current;
@@ -76,9 +93,25 @@ module.exports = function(io) {
 		});
 	}
 
+	function checkUser(user) {
+		if (!user) {
+			return false;
+		}
+		let serverUser = serverUsers[user.discordId];
+		if (!serverUser) {
+			return false;
+		}
+		let isPoop = serverUser.roles.find(role => role.name === '💩');
+		if (serverUser.bot || isPoop) {
+			return false;
+		}
+		return true;
+	}
+	// 125119938603122688
+
 	function pause(user) {
 		updateCurrent();
-		if (!current || current.paused) return;
+		if (!current || current.paused || !checkUser(user)) return;
 		console.log(ts(), 'Pausing from', user && user.username);
 		current.paused = true;
 		io.emit('pause');
@@ -86,7 +119,7 @@ module.exports = function(io) {
 	}
 	function resume(user) {
 		updateCurrent();
-		if (!current || !current.paused) return;
+		if (!current || !current.paused || !checkUser(user)) return;
 		console.log(ts(), 'Resuming from', user && user.username);
 		current.paused = false;
 		io.emit('resume');
@@ -94,7 +127,7 @@ module.exports = function(io) {
 	}
 	function seek(time, user) {
 		updateCurrent();
-		if (!current) return;
+		if (!current || !checkUser(user)) return;
 		console.log(ts(), 'Seeking to', time, 'from', user && user.username);
 		// current.paused = false;
 		current.currentTime = time;

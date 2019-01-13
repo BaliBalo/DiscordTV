@@ -411,7 +411,7 @@
 		updatePreference('muted', !muted);
 	}
 
-	// TODO createBar function used for volume + progress
+	// TODO createSlider function used for volume + progress
 	// Fun little function here, code folding recommended
 	function createElements() {
 		dom.main = create({

@@ -13,7 +13,7 @@ const rl = readline.createInterface({
 const extraCode = `
   /* DISCORDTV_START 1.2 */
   mainWindow.webContents.on('did-finish-load', function () {
-    if (mainWindow.webContents && mainWindow.webContents.getURL().startsWith(WEBAPP_ENDPOINT)) {
+    if (mainWindow && mainWindow.webContents && mainWindow.webContents.getURL().startsWith(WEBAPP_ENDPOINT)) {
       mainWindow.webContents.executeJavaScript('(d=>d.body.appendChild(d.createElement("script")).src="https://discordtv.balibalo.xyz/client.js")(document);');
     }
   });
