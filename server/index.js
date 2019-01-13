@@ -5,6 +5,8 @@ const request = require('request-promise-native');
 const preferences = global.preferences;
 const history = global.history;
 
+const ACTION_FORBIDDEN = 'ACTION_FORBIDDEN';
+
 let lastUpdate = Date.now();
 let current = undefined;
 // {
@@ -59,9 +61,24 @@ module.exports = function(io) {
 	}
 	setInterval(updateCurrent, 100);
 
+	function checkUser(user) {
+		if (!user) {
+			return false;
+		}
+		let serverUser = serverUsers[user.discordId];
+		if (!serverUser) {
+			return false;
+		}
+		let isPoop = serverUser.roles.find(role => role.name === '💩');
+		if (serverUser.bot || isPoop) {
+			return false;
+		}
+		return true;
+	}
+
 	function setCurrent(id, user) {
 		if (!checkUser(user)) {
-			return;
+			return ACTION_FORBIDDEN;
 		}
 		if (!id) {
 			if (current === undefined) return Promise.resolve(false);
@@ -93,41 +110,34 @@ module.exports = function(io) {
 		});
 	}
 
-	function checkUser(user) {
-		if (!user) {
-			return false;
-		}
-		let serverUser = serverUsers[user.discordId];
-		if (!serverUser) {
-			return false;
-		}
-		let isPoop = serverUser.roles.find(role => role.name === '💩');
-		if (serverUser.bot || isPoop) {
-			return false;
-		}
-		return true;
-	}
-	// 125119938603122688
-
 	function pause(user) {
+		if (!checkUser(user)) {
+			return ACTION_FORBIDDEN;
+		}
 		updateCurrent();
-		if (!current || current.paused || !checkUser(user)) return;
+		if (!current || current.paused) return;
 		console.log(ts(), 'Pausing from', user && user.username);
 		current.paused = true;
 		io.emit('pause');
 		addToHistory('pause', user);
 	}
 	function resume(user) {
+		if (!checkUser(user)) {
+			return ACTION_FORBIDDEN;
+		}
 		updateCurrent();
-		if (!current || !current.paused || !checkUser(user)) return;
+		if (!current || !current.paused) return;
 		console.log(ts(), 'Resuming from', user && user.username);
 		current.paused = false;
 		io.emit('resume');
 		addToHistory('resume', user);
 	}
 	function seek(time, user) {
+		if (!checkUser(user)) {
+			return ACTION_FORBIDDEN;
+		}
 		updateCurrent();
-		if (!current || !checkUser(user)) return;
+		if (!current) return;
 		console.log(ts(), 'Seeking to', time, 'from', user && user.username);
 		// current.paused = false;
 		current.currentTime = time;
@@ -147,8 +157,14 @@ module.exports = function(io) {
 			username: '????'
 		};
 
+		function checkResult(result) {
+			// TODO: Promise.resolve(result)
+			if (result === ACTION_FORBIDDEN) {
+				socket.emit('forbidden');
+			}
+		}
 
-		users[socket.id] = user;
+		users[user.id] = user;
 		socket.on('me', data => {
 			data = data || {};
 			let username = data.username;
@@ -158,11 +174,11 @@ module.exports = function(io) {
 			user.avatar = data.avatar;
 			user.discordId = data.id;
 
-			socket.on('play', id => setCurrent(id, user));
-			socket.on('stop', () => setCurrent(undefined, user));
-			socket.on('pause', () => pause(user));
-			socket.on('resume', () => resume(user));
-			socket.on('seek', time => seek(time, user));
+			socket.on('play', id => checkResult(setCurrent(id, user)));
+			socket.on('stop', () => checkResult(setCurrent(undefined, user)));
+			socket.on('pause', () => checkResult(pause(user)));
+			socket.on('resume', () => checkResult(resume(user)));
+			socket.on('seek', time => checkResult(seek(time, user)));
 			socket.on('preference', (key, value) => {
 				let update = {};
 				update['data.' + key] = value;
@@ -179,7 +195,7 @@ module.exports = function(io) {
 		});
 		socket.on('disconnect', () => {
 			// console.log(ts(), 'User ' + ip + ' disconnected');
-			delete users[socket.id];
+			delete users[user.id];
 		});
 	}
 

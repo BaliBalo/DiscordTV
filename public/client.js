@@ -101,6 +101,7 @@
 		if (ctrl && key === 77) {
 			toggleMute();
 			e.preventDefault();
+			showMessage(preferences.muted ? 'Son désactivé' : 'Son activé')
 			return;
 		}
 	}
@@ -157,6 +158,31 @@
 		update[preferences.anchor[0]] = pX + 'px';
 		update[preferences.anchor[1]] = pY + 'px';
 		setStyle(dom.main, update);
+	}
+
+	function showMessage(str) {
+		let msg = create({
+			position: 'absolute',
+			bottom: '100%',
+			marginBottom: '5px',
+			left: '50%',
+			background: '#336',
+			color: '#fff',
+			padding: '10px',
+			borderRadius: '5px',
+			fontFamily: 'sans-serif',
+			fontSize: '20px',
+			transform: 'translate(-50%, 0) scale(1)',
+			transition: 'opacity .3s 1s, transform .3s 1s',
+		});
+		msg.textContent = str;
+		dom.main.appendChild(msg);
+		msg.clientWidth;
+		setStyle(msg, {
+			opacity: '0',
+			transform: 'translate(-50%, -30px) scale(.7)',
+		});
+		setTimeout(() => dom.main.removeChild(msg), 1500);
 	}
 
 	function initiateRequest(e) {
@@ -853,6 +879,7 @@
 		socket.on('pause', gotPause);
 		socket.on('resume', gotResume);
 		socket.on('seek', gotSeek);
+		socket.on('forbidden', () => showMessage('Action non autorisée'));
 		socket.on('preferences', pref => {
 			Object.assign(preferences, pref);
 			document.addEventListener('keydown', docKeyDown);
