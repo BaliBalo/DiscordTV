@@ -166,15 +166,16 @@
 			bottom: '100%',
 			marginBottom: '5px',
 			left: '50%',
-			background: '#336',
+			background: 'rgba(0, 0, 0, .5)',
+			textShadow: '0 0 2px rgba(0, 0, 0, 1)',
 			color: '#fff',
 			padding: '10px',
 			borderRadius: '5px',
 			fontFamily: 'sans-serif',
-			fontSize: '12px',
+			fontSize: '14px',
 			whiteSpace: 'pre',
 			transform: 'translate(-50%, 0)',
-			transition: 'opacity .15s 1s, transform .15s 1s',
+			transition: 'opacity .1s .7s, transform .1s .7s',
 			backfaceVisibility: 'hidden'
 		});
 		msg.textContent = str;
@@ -182,7 +183,7 @@
 		msg.clientWidth;
 		setStyle(msg, {
 			opacity: '0',
-			transform: 'translate(-50%, 30px)',
+			transform: 'translate(-50%, -10px)',
 		});
 		setTimeout(() => dom.main.removeChild(msg), 1500);
 	}
