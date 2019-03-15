@@ -14,7 +14,7 @@ Goal features, maybe
 ## Installation
 
 `public/setup.exe` edits the discord source file to automatically start the player.  
-May need to be ran after every update.
+May need to be run after every update.
 
 ## Building the installer
 
