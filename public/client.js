@@ -933,10 +933,10 @@
 		let found = [...Array(5000)].findIndex((e,i) => {
 			try {
 				val = webpackJsonp.push([[], [], [[i]]]);
-				return val && typeof val.getCurrentUser === 'function';
+				return val && val.default && typeof val.default.getCurrentUser === 'function';
 			} catch(e) {}
 		});
-		return found === undefined ? null : val;
+		return found === -1 ? null : val.default;
 	}
 
 	function getUser() {
