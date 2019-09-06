@@ -65,6 +65,9 @@ module.exports = function(io) {
 		if (!user) {
 			return false;
 		}
+		if (!Object.keys(serverUsers).length) {
+			return true;
+		}
 		let serverUser = serverUsers[user.discordId];
 		if (!serverUser) {
 			return false;
