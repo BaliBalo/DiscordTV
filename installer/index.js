@@ -1,14 +1,20 @@
 const path = require('path');
 const fs = require('fs');
+const util = require('util');
 const readline = require('readline');
 const psList = require('ps-list');
-const rimraf = require('rimraf');
+const rimrafCB = require('rimraf');
 const asar = require('asar');
 
 const rl = readline.createInterface({
 	input: process.stdin,
 	output: process.stdout
 });
+
+const rimraf = util.promisify(rimrafCB);
+const ask = question => new Promise(resolve => rl.question(question, resolve));
+
+const isDirectory = source => fs.lstatSync(source).isDirectory();
 
 const extraCode = `
   /* DISCORDTV_START 1.2 */
@@ -29,126 +35,133 @@ const extraCode = `
 
 `;
 
+function wait(time) { return new Promise(r => setTimeout(r, time)); }
+
+function exit() {
+	rl.close();
+	process.exit();
+}
+async function waitAndExit() {
+	await ask('[Press enter to exit]');
+	exit();
+}
+
 function getDataRoot() {
 	switch (process.platform) {
 		case 'darwin':
-		return path.join(process.env.HOME, 'Library', 'Application Support');
+			return path.join(process.env.HOME, 'Library', 'Application Support');
 		case 'win32':
-		return process.env.APPDATA;
+			return process.env.APPDATA;
 		case 'linux':
-		return process.env.XDG_CONFIG_HOME || path.join(process.env.HOME, '.config');
+			return process.env.XDG_CONFIG_HOME || path.join(process.env.HOME, '.config');
 	}
 }
 
-function waitAndExit() {
-	rl.question('[Press enter to exit]', (answer) => {
-		rl.close();
-		process.exit();
-	});
+async function closeDiscord() {
+	let list = await psList();
+	let procs = list.filter(p => p.name.toLowerCase().includes('discord'));
+	if (procs.length) {
+		procs.forEach(proc => process.kill(proc.pid));
+		// Wait until discord is actually killed
+		//   (we only sent kill signals, doesn't guarantee anything)
+		//   could check the process list again and wait for it to disappear
+		await wait(1000);
+	}
 }
 
-let discordProcess;
-function closeDiscord() {
-	console.log('Making sure Discord is closed');
-	psList().then(list => {
-		let proc = list.find(p => p.name.toLowerCase().includes('discord'));
-		if (proc) {
-			process.kill(proc.pid);
-		}
-		getDiscordDesktopCorePath();
-	}).catch(e => {
-		console.log('Error while trying to close Discord', e);
-		rl.question('[Type yes to try the installation anyway, enter to exit]', (answer) => {
-			if (!answer || answer[0] !== 'y') {
-				rl.close();
-				process.exit();
-				return;
+async function getDiscordDesktopCorePath() {
+	let source = path.join(getDataRoot(), 'discord');
+	let versionDirectories = fs.readdirSync(source).filter(dir => (
+		isDirectory(path.join(source, dir)) && dir.match(/^\d+\.\d+(\.\d+(\.\d+)?)?$/)
+	)).sort((a, b) => {
+		// Sort by version
+		let as = a.split('.');
+		let bs = b.split('.');
+		for (let i = 0, l = Math.min(as.length, bs.length); i < l; i++) {
+			let d = bs[i] - as[i];
+			if (d) {
+				return d;
 			}
-			getDiscordDesktopCorePath();
-		});
-	});
-}
-
-const tempPath = path.join(getDataRoot(), 'DiscordTV', '__tmp');
-let discordDesktopCorePath;
-let discordDesktopCore;
-
-const isDirectory = source => fs.lstatSync(source).isDirectory();
-function getDiscordDesktopCorePath() {
-	try {
-		let source = path.join(getDataRoot(), 'discord');
-		let versionDirectories = fs.readdirSync(source).filter(dir => {
-			if (!isDirectory(path.join(source, dir))) return false;
-			return dir.match(/^\d+\.\d+(\.\d+(\.\d+)?)?$/);
-		}).sort((a, b) => {
-			let as = a.split('.');
-			let bs = b.split('.');
-			for (let i = 0, l = Math.min(as.length, bs.length); i < l; i++) {
-				let d = bs[i] - as[i];
-				if (d) return d;
-			}
-			return 0;
-		});
-		let mostRecent = versionDirectories[0];
-		console.log('Discord version', mostRecent);
-		if (!mostRecent) throw 'not found';
-		discordDesktopCorePath = path.join(source, mostRecent, 'modules', 'discord_desktop_core');
-		if (!fs.existsSync(discordDesktopCorePath)) throw 'discord_desktop_core not found';
-		extractAsar();
-	} catch (e) {
-		console.log('Cannot find Discord path -', e);
-		waitAndExit();
-	}
-}
-
-function extractAsar() {
-	discordDesktopCore = path.join(discordDesktopCorePath, 'core.asar');
-	console.log('Extracting', discordDesktopCore);
-	try {
-		asar.extractAll(discordDesktopCore, tempPath);
-		insertCode();
-	} catch (e) {
-		console.log('Error extracting archive -', e);
-		waitAndExit();
-	}
-}
-
-function insertCode() {
-	try {
-		let file = path.join(tempPath, 'app', 'mainScreen.js');
-		let data = fs.readFileSync(file, 'utf-8');
-		if (data.indexOf('discordtv.balibalo.xyz') !== -1) {
-			console.log('Already installed');
-			return waitAndExit();
 		}
-		console.log('Adding the cusom code');
-		data = data.replace(/(mainWindow\.webContents\.on\('new-window')/, extraCode.replace(/\$/g, '$$') + '$1');
-		fs.writeFileSync(file, data, 'utf-8');
-		recompile();
-	} catch (e) {
-		console.log('Error adding custom code -', e);
-		waitAndExit();
-	}
-}
-
-function recompile() {
-	console.log('Recompiling');
-	try {
-		// Move the original file as a backup
-		fs.renameSync(discordDesktopCore, path.join(discordDesktopCorePath, 'core_' + Date.now() + '.asar'));
-		asar.createPackage(tempPath, discordDesktopCore, cleanup);
-	} catch (e) {
-		console.log('Error recompiling discord -', e);
-		waitAndExit();
-	}
-}
-
-function cleanup() {
-	rimraf(tempPath, function () {
-		console.log('Done.');
-		waitAndExit();
+		return 0;
 	});
+	let mostRecent = versionDirectories[0];
+	if (!mostRecent) {
+		throw 'discord version not found';
+	}
+	console.log('Discord version', mostRecent);
+	let dir = path.join(source, mostRecent, 'modules', 'discord_desktop_core');
+	if (!fs.existsSync(dir)) {
+		throw 'discord_desktop_core not found';
+	}
+	return dir;
+}
+
+function insertCode(tempPath) {
+	let file = path.join(tempPath, 'app', 'mainScreen.js');
+	let data = fs.readFileSync(file, 'utf-8');
+	if (data.indexOf('discordtv.balibalo.xyz') !== -1) {
+		throw 'already installed';
+	}
+	let position = data.indexOf('mainWindow.webContents.on(\'new-window\'');
+	if (position === -1) {
+		throw 'unable to locate startup code';
+	}
+	data = data.slice(0, position) + extraCode + data.slice(position);
+	fs.writeFileSync(file, data, 'utf-8');
 }
 
 // Start the install process
-closeDiscord();
+(async function() {
+	console.log('Making sure Discord is closed');
+	try {
+		await closeDiscord();
+	} catch(e) {
+		console.log('Error while trying to close Discord', e);
+		let answer = await ask('[Type yes to try the installation anyway, enter to exit] ');
+		if (!answer || answer[0] !== 'y') {
+			return exit();
+		}
+	}
+
+	let discordDesktopCorePath;
+	try {
+		discordDesktopCorePath = await getDiscordDesktopCorePath();
+	} catch(e) {
+		console.log('Cannot find Discord path -', e);
+		return waitAndExit();
+	}
+
+	let discordDesktopCore = path.join(discordDesktopCorePath, 'core.asar');
+	const tempPath = path.join(getDataRoot(), 'DiscordTV', '__tmp');
+	console.log('Extracting', discordDesktopCore);
+	try {
+		await asar.extractAll(discordDesktopCore, tempPath);
+	} catch (e) {
+		console.log('Error extracting archive -', e);
+		return waitAndExit();
+	}
+
+	console.log('Adding the cusom code');
+	try {
+		await insertCode(tempPath);
+	} catch (e) {
+		console.log('Error adding custom code -', e);
+		return waitAndExit();
+	}
+
+	console.log('Recompiling');
+	try {
+		// Move the original file as a backup (used for uninstaller)
+		fs.renameSync(discordDesktopCore, path.join(discordDesktopCorePath, 'core_' + Date.now() + '.asar'));
+		await asar.createPackage(tempPath, discordDesktopCore);
+	} catch (e) {
+		console.log('Error recompiling discord -', e);
+		return waitAndExit();
+	}
+
+	// cleanup
+	await rimraf(tempPath);
+	console.log('Done.');
+	return waitAndExit();
+})();

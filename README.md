@@ -20,6 +20,7 @@ May need to be run after every update.
 
 - `npm install -g pkg`
 - `pkg installer/index.js -o public/setup`
+- `pkg installer/uninstall.js -o public/uninstall`
 
 ## Manual injection
 
