@@ -142,7 +142,7 @@ function insertCode(tempPath) {
 		return waitAndExit();
 	}
 
-	console.log('Adding the cusom code');
+	console.log('Adding the custom code');
 	try {
 		await insertCode(tempPath);
 	} catch (e) {
