@@ -36,16 +36,18 @@ app.get('/user-info', (req, res) => {
 		users[code] = request({
 			method: 'POST',
 			uri: 'https://discordapp.com/api/oauth2/token',
-			qs: {
+			form: {
 				grant_type: 'authorization_code',
 				code: code,
 				redirect_uri: 'http://discordtv.balibalo.xyz/'
 			},
-			headers: {
-				Authorization: 'Basic ' + config.discordAuth,
-			},
-			json: true
+			headers: { Authorization: 'Basic ' + config.discordAuth }
 		}).then(data => {
+			if (typeof data === 'string') {
+				try {
+					data = JSON.parse(data);
+				} catch(e) { /* */ }
+			}
 			if (!data || !data.access_token) {
 				throw new Error('No access token ' + JSON.stringify(data));
 			}
@@ -54,9 +56,7 @@ app.get('/user-info', (req, res) => {
 			return request({
 				method: 'GET',
 				uri: 'https://discordapp.com/api/users/@me',
-				headers: {
-					Authorization: auth,
-				},
+				headers: { Authorization: auth },
 				json: true
 			});
 		}).catch(e => {
