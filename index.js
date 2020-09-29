@@ -11,7 +11,7 @@ const Datastore = require('nedb');
 global.preferences = new Datastore({ filename: path.join(__dirname, 'data', 'preferences.db'), autoload: true });
 global.history = new Datastore({ filename: path.join(__dirname, 'data', 'history.db'), autoload: true });
 
-global.history.ensureIndex({ fieldName: 'at' }, (err) => console.log('Error creating index on history', err));
+global.history.ensureIndex({ fieldName: 'at' }, (err) => err && console.log('Error creating index on history', err));
 
 global.ioUsers = {};
 
