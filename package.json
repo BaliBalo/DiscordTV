@@ -4,6 +4,7 @@
   "description": "Simultaneous youtube playback on Discord",
   "main": "index.js",
   "scripts": {
+    "make": "npx pkg installer/index.js --targets linux,macos,win -o public/setup && npx pkg installer/uninstall.js --targets linux,macos,win -o public/uninstall",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -17,18 +18,19 @@
   },
   "homepage": "https://github.com/BaliBalo/DiscordTV#readme",
   "dependencies": {
-    "asar": "^2.0.1",
-    "btoa": "^1.1.2",
-    "express": "^4.16.3",
+    "asar": "^3.0.3",
+    "btoa": "^1.2.1",
+    "express": "^4.17.1",
     "nedb": "^1.8.0",
-    "ps-list": "^4.0.0",
-    "request": "^2.88.0",
-    "request-promise-native": "^1.0.7",
-    "rimraf": "^3.0.0",
-    "socket.io": "^2.0.4"
+    "ps-list": "^7.2.0",
+    "request": "^2.88.2",
+    "request-promise-native": "^1.0.9",
+    "rimraf": "^3.0.2",
+    "socket.io": "^2.3.0"
   },
   "devDependencies": {
-    "babel-eslint": "^10.0.3",
-    "eslint": "^6.5.1"
+    "babel-eslint": "^10.1.0",
+    "eslint": "^7.10.0",
+    "pkg": "^4.4.9"
   }
 }

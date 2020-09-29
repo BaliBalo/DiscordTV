@@ -18,11 +18,12 @@ May need to be run after every update.
 
 ## Building the installer
 
-- `npm install -g pkg`
-- `pkg installer/index.js -o public/setup`
-- `pkg installer/uninstall.js -o public/uninstall`
+- `npm run make`
 
 ## Manual injection
 
 (not recommended)  
-You can press `Ctrl+Shift+I` in discord to request client.js yourself.
+You can press `Ctrl+Shift+I` in discord to request client.js yourself:
+```
+(d=>d.body.appendChild(d.createElement('script')).src='https://discordtv.balibalo.xyz/client.js')(document);
+```
