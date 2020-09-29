@@ -11,6 +11,8 @@ const Datastore = require('nedb');
 global.preferences = new Datastore({ filename: path.join(__dirname, 'data', 'preferences.db'), autoload: true });
 global.history = new Datastore({ filename: path.join(__dirname, 'data', 'history.db'), autoload: true });
 
+global.history.ensureIndex({ fieldName: 'at' }, (err) => console.log('Error creating index on history', err));
+
 global.ioUsers = {};
 
 require('./server')(io);
@@ -76,7 +78,7 @@ app.get('/preferences.json', (req, res) => {
 	if (!req.query.user) {
 		return res.status(400).send('{ "error": "Bad Request" }');
 	}
-	preferences.findOne({ user: req.query.user }, (err, pref) => {
+	global.preferences.findOne({ user: req.query.user }, (err, pref) => {
 		if (err || !pref) {
 			pref = { data: {} };
 		}
@@ -95,7 +97,7 @@ app.get('/history.json', (req, res) => {
 	if (query.after) {
 		at.$gt = new Date(+query.after || query.after);
 	}
-	let data = global.history.find({ at }).sort({ at: -1 }).limit(count).exec((err, data) => {
+	global.history.find({ at }).sort({ at: -1 }).limit(count).exec((err, data) => {
 		res.send(data || {});
 	});
 });

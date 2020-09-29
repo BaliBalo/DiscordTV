@@ -46,7 +46,7 @@ function addToHistory(event, from, data) {
 
 module.exports = function(io) {
 	function updateCurrent() {
-		let now = Date.now()
+		let now = Date.now();
 		let delta = (now - lastUpdate) / 1000;
 		lastUpdate = now;
 		if (!current || current.paused) return;
