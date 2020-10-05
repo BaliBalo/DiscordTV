@@ -48,6 +48,9 @@
 		let minutes = ~~(seconds / 60);
 		let m = minutes % 60;
 		let h = ~~(minutes / 60);
+		if (h) {
+			m = ('0' + m).slice(-2);
+		}
 		return (h ? h + ':' : '') + m + ':' + ('0' + s).slice(-2);
 	}
 
