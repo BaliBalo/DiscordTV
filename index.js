@@ -11,9 +11,18 @@ const Datastore = require('nedb');
 global.preferences = new Datastore({ filename: path.join(__dirname, 'data', 'preferences.db'), autoload: true });
 global.history = new Datastore({ filename: path.join(__dirname, 'data', 'history.db'), autoload: true });
 
+// global.preferences.persistence.setAutocompactionInterval(24 * 60 * 60 * 1000);
 global.history.ensureIndex({ fieldName: 'at' }, (err) => err && console.log('Error creating index on history', err));
 
 global.ioUsers = {};
+
+// Delete events from over a year ago once a day
+// Hopefully that will lower the RAM usage without having to switch to a real DB
+setInterval(() => {
+	let deleteBefore = new Date();
+	deleteBefore.setFullYear(deleteBefore.getFullYear() - 1);
+	global.history.remove({ at: { $lt: deleteBefore } }, { multi: true }, (err, num) => num && console.log(ts(), 'Archived ' + num + ' history events'))
+}, 24 * 60 * 60 * 1000);
 
 require('./server')(io);
 
