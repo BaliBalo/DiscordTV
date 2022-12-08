@@ -20,7 +20,7 @@
   "dependencies": {
     "asar": "^3.0.3",
     "btoa": "^1.2.1",
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "nedb": "^1.8.0",
     "ps-list": "^7.2.0",
     "request": "^2.88.2",
